@@ -10,7 +10,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Qdrant__Url=http://qdrant:6333
-      - HuggingFace__ApiKey==${HUGGINGFACE_API_KEY}
+      - HuggingFace__ApiKey=${HUGGINGFACE_API_KEY}
     depends_on:
       - qdrant
     networks:

@@ -32,7 +32,7 @@ public class FileUploadService : IFileUploadService
             throw new ArgumentException("Only .txt files are allowed");
         }
 
-        Directory.CreateDirectory(dataPath); // Ensure directory exists
+        Directory.CreateDirectory(dataPath);
         string filePath = Path.Combine(dataPath, file.FileName);
 
         if (System.IO.File.Exists(filePath))
@@ -43,7 +43,6 @@ public class FileUploadService : IFileUploadService
 
         try
         {
-            // Save the file using FileReader
             using (var stream = file.OpenReadStream())
             {
                 await _fileReader.WriteFileAsync(filePath, stream);
@@ -51,7 +50,6 @@ public class FileUploadService : IFileUploadService
 
             _logger.Information("File uploaded successfully: {FileName}", file.FileName);
 
-            // Trigger indexing for the new file
             try
             {
                 await _indexingService.IndexFilesAsync(filePath);
@@ -60,12 +58,11 @@ public class FileUploadService : IFileUploadService
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to index uploaded file: {FileName}", file.FileName);
-                // Note: We don't fail the upload if indexing fails, but we log it
             }
 
             return new FileUploadResponseDto
             {
-                Message = $"File {file.FileName} uploaded and processed successfully",
+                Message = $"File {file.FileName} uploaded and indexed successfully",
                 FileName = file.FileName,
                 FilePath = filePath
             };

@@ -56,24 +56,6 @@ public class SearchController : ControllerBase
         }
     }
 
-    [HttpPost("reindex")]
-    public async Task<IActionResult> Reindex([FromServices] IFileIndexingService indexingService, [FromServices] IWebHostEnvironment env)
-    {
-        try
-        {
-            _logger.Information("Manual reindexing triggered");
-            string dataPath = Path.GetFullPath(Path.Combine(env.ContentRootPath, "data"));
-            await indexingService.IndexFilesAsync(dataPath);
-            _logger.Information("Manual reindexing completed");
-            return Ok(new { Message = "Reindexing completed successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Manual reindexing failed");
-            return StatusCode(500, new { Error = "An unexpected error occurred during reindexing." });
-        }
-    }
-
     [HttpPost("upload")]
     public async Task<IActionResult> UploadFile(IFormFile file)
     {

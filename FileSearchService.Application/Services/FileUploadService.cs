@@ -1,6 +1,7 @@
 using FileSearchService.Application.DTOs;
 using FileSearchService.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
+using FileSearchService.Domain.Exceptions;
 using Serilog;
 
 namespace FileSearchService.Application.Services;
@@ -23,13 +24,13 @@ public class FileUploadService : IFileUploadService
         if (file == null || file.Length == 0)
         {
             _logger.Warning("No file uploaded or file is empty");
-            throw new ArgumentException("No file uploaded or file is empty");
+            throw new BaseCustomException("No file uploaded or file is empty", StatusCodes.Status400BadRequest, "EMPTY_FILE");
         }
 
         if (!file.FileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
         {
             _logger.Warning("Invalid file type uploaded: {FileName}", file.FileName);
-            throw new ArgumentException("Only .txt files are allowed");
+            throw new InvalidFileTypeException(file.FileName);
         }
 
         Directory.CreateDirectory(dataPath);
@@ -38,7 +39,7 @@ public class FileUploadService : IFileUploadService
         if (System.IO.File.Exists(filePath))
         {
             _logger.Warning("File already exists: {FileName}", file.FileName);
-            throw new ArgumentException("File already exists");
+            throw new FileAlreadyExistsException(file.FileName);
         }
 
         try
@@ -52,12 +53,13 @@ public class FileUploadService : IFileUploadService
 
             try
             {
-                await _indexingService.IndexFilesAsync(filePath);
+                await _indexingService.IndexFileAsync(filePath);
                 _logger.Information("File indexed successfully: {FileName}", file.FileName);
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to index uploaded file: {FileName}", file.FileName);
+                throw new IndexingFailedException(file.FileName, ex.Message);
             }
 
             return new FileUploadResponseDto

@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using FileSearchService.Application.Interfaces;
 using FileSearchService.Domain.Entities;
+using FileSearchService.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -54,7 +56,13 @@ public class QdrantClient : IQdrantClient
             var content = new StringContent(JsonSerializer.Serialize(collectionConfig), Encoding.UTF8, "application/json");
             var createResponse = await _httpClient.PutAsync($"/collections/{_collectionName}", content);
 
-            createResponse.EnsureSuccessStatusCode();
+            if (!createResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await createResponse.Content.ReadAsStringAsync();
+                _logger.Error("Failed to create Qdrant collection: {ErrorContent}", errorContent);
+                throw new QdrantOperationFailedException("collection creation", errorContent);
+            }
+
             _logger.Information("Qdrant collection created: {CollectionName}", _collectionName);
         }
         catch (Exception ex)
@@ -75,7 +83,7 @@ public class QdrantClient : IQdrantClient
         catch (Exception ex)
         {
             _logger.Error(ex, "Failed to check document existence: {Id}", id);
-            return false;
+            throw new QdrantOperationFailedException("document existence check", ex.Message);
         }
     }
 
@@ -86,7 +94,7 @@ public class QdrantClient : IQdrantClient
             if (document.Vector == null || document.Vector.Length != 1024)
             {
                 _logger.Error("Invalid vector for document {DocumentId}: Length = {VectorLength}", document.Id, document.Vector?.Length ?? 0);
-                throw new ArgumentException($"Vector must be non-null and have length 1024, got length {document.Vector?.Length ?? 0}");
+                throw new BaseCustomException($"Vector must be non-null and have length 1024, got length {document.Vector?.Length ?? 0}", StatusCodes.Status400BadRequest, "INVALID_VECTOR");
             }
 
             var point = new
@@ -116,7 +124,7 @@ public class QdrantClient : IQdrantClient
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 _logger.Error("Qdrant API failed with status {StatusCode}: {ErrorContent}", response.StatusCode, errorContent);
-                throw new HttpRequestException($"Qdrant API error: {response.StatusCode} - {errorContent}");
+                throw new QdrantOperationFailedException("upsert", errorContent);
             }
 
             _logger.Information("Upserted document: {DocumentId}", document.Id);
@@ -159,7 +167,7 @@ public class QdrantClient : IQdrantClient
         catch (Exception ex)
         {
             _logger.Error(ex, "Search failed in Qdrant");
-            throw;
+            throw new QdrantOperationFailedException("search", ex.Message);
         }
     }
 

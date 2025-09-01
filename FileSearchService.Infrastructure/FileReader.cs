@@ -1,4 +1,6 @@
 using FileSearchService.Application.Interfaces;
+using FileSearchService.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 
 namespace FileSearchService.Infrastructure;
@@ -63,7 +65,7 @@ public class FileReader : IFileReader
         catch (Exception ex)
         {
             _logger.Error(ex, "Failed to write file: {FilePath}", filePath);
-            throw;
+            throw new BaseCustomException($"Failed to write file: {filePath}", StatusCodes.Status500InternalServerError, "FILE_WRITE_FAILED");
         }
     }
 }

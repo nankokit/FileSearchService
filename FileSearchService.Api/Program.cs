@@ -1,6 +1,7 @@
 using FileSearchService.Application.Interfaces;
 using FileSearchService.Application.Services;
 using FileSearchService.Infrastructure;
+using FileSearchService.Infrastructure.Middleware;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -26,6 +27,8 @@ builder.Services.AddSingleton<IFileUploadService, FileUploadService>();
 builder.Services.AddHostedService<FileIndexingBackgroundService>();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();

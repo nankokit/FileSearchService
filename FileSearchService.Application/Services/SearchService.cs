@@ -2,6 +2,8 @@ using FileSearchService.Application.Interfaces;
 using FileSearchService.Application.DTOs;
 using FileSearchService.Domain.Entities;
 using Serilog;
+using FileSearchService.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
 
 namespace FileSearchService.Application.Services
 {
@@ -23,6 +25,11 @@ namespace FileSearchService.Application.Services
             try
             {
                 _logger.Information("Performing search with query: {Query}, limit: {Limit}", query, limit);
+
+                if (string.IsNullOrEmpty(query))
+                {
+                    throw new BaseCustomException("Search query cannot be empty", StatusCodes.Status400BadRequest, "EMPTY_QUERY");
+                }
 
                 var embedding = await _embeddingService.GenerateEmbeddingAsync(query);
                 var searchResults = await _qdrantClient.SearchAsync(embedding, limit);
@@ -48,7 +55,7 @@ namespace FileSearchService.Application.Services
             catch (Exception ex)
             {
                 _logger.Error(ex, "Search failed for query: {Query}", query);
-                throw;
+                throw new SearchFailedException(query, ex.Message);
             }
         }
 

@@ -1,3 +1,6 @@
+using FileSearchService.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
+
 namespace FileSearchService.Application.DTOs;
 
 public class SearchRequestDto
@@ -8,8 +11,9 @@ public class SearchRequestDto
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Query))
-            throw new ArgumentException("Query cannot be empty or whitespace.");
+            throw new BaseCustomException("Search query cannot be empty", StatusCodes.Status400BadRequest, "EMPTY_QUERY");
+
         if (Limit <= 0 || Limit > 100)
-            throw new ArgumentException("Limit must be between 1 and 100.");
+            throw new BaseCustomException("Limit must be greater than zero and less than 100", StatusCodes.Status400BadRequest, "INVALID_LIMIT");
     }
 }

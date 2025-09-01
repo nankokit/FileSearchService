@@ -4,6 +4,9 @@ using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text;
 using LangChain.Splitters.Text;
+using Microsoft.AspNetCore.Http;
+using FileSearchService.Domain.Exceptions;
+using System.Net;
 
 namespace FileSearchService.Application.Services;
 
@@ -29,7 +32,7 @@ public class EmbeddingService : IEmbeddingService
             if (string.IsNullOrEmpty(text))
             {
                 _logger.Error("Input text is empty or null");
-                throw new ArgumentException("Input text cannot be empty");
+                throw new BaseCustomException("Input text cannot be empty", StatusCodes.Status400BadRequest, "EMPTY_TEXT");
             }
 
             text = text.Replace("\r\n", "\n").Trim();
@@ -56,7 +59,14 @@ public class EmbeddingService : IEmbeddingService
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"HF API error: {response.StatusCode} - {errorContent}");
+                _logger.Error("Hugging Face API request failed with status {StatusCode}: {ErrorContent}", response.StatusCode, errorContent);
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new HuggingFaceApiException("Unauthorized", "Invalid credentials in Authorization header");
+                }
+
+                throw new BaseCustomException($"Hugging Face API error: {response.StatusCode}", (int)response.StatusCode, "HF_API_ERROR");
             }
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -68,11 +78,13 @@ public class EmbeddingService : IEmbeddingService
             }
 
             _logger.Information("Successfully generated embedding with length {EmbeddingLength}", embedding.Count);
+
             if (embedding.Count != 1024)
             {
                 _logger.Error("Unexpected embedding length: {EmbeddingLength}, expected 1024", embedding.Count);
-                throw new Exception($"Embedding length {embedding.Count} does not match expected 1024");
+                throw new EmbeddingGenerationFailedException($"Embedding length {embedding.Count} does not match expected 1024");
             }
+
             return embedding.ToArray();
         }
         catch (Exception ex)
